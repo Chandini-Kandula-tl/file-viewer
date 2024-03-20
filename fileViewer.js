@@ -39,6 +39,7 @@ class FileViwer {
     }
 
     handleInput() {
+        this.seperateFilesDirectories()
         while (true) {
             if (this.logs.isLogingStart === false) {
                 console.log("logs are in deactive state, please activate to store logs \nobserve the format : <log --start> <filepath>");
@@ -89,14 +90,11 @@ class FileViwer {
                 console.log("<DIR> missing : please specify directory");
                 return;
             }
-            else if (argument === Constants.DOTS) {
-                this.givenPath = path.dirname(this.givenPath);
-                console.log(this.givenPath);
-            }
-            else{
+            else {
                 let newPath = path.join(this.givenPath, argument);
                 if (fs.existsSync(newPath)) {
                     this.givenPath = newPath;
+                    this.seperateFilesDirectories();
                     console.log(this.givenPath);
                 }
                 else {
@@ -129,54 +127,36 @@ class FileViwer {
                 console.log(hiddenFiles);
             }
             else if (argument === Constants.G) {
-                this.seperateFilesDirectories();
                 console.log(this.filesAndDirectories);
             }
             else if (argument === Constants.FI) {
-                this.seperateFilesDirectories();
                 console.log(this.filesAndDirectories["Files"]);
 
             }
             else if (argument === Constants.DIR) {
-                this.seperateFilesDirectories();
                 console.log(this.filesAndDirectories["Directories"]);
             }
             else if (argument === Constants.FIG) {
-                let groupOfFiles = {};
                 let directoryFiles = fs.readdirSync(this.givenPath);
-                directoryFiles.forEach(file => {
-                    let fileArr = file.split(".");
-                    let statObj = fs.statSync(path.join(this.givenPath,file));
-                    if (statObj.isFile()) {
-                        if (groupOfFiles[fileArr[1]]) {
-                            groupOfFiles[fileArr[1]].push(file);
-                        }
-                        else {
-                            groupOfFiles[fileArr[1]] = [];
-                            groupOfFiles[fileArr[1]].push(file);
-                        }
+                const groupOfFiles = directoryFiles.reduce((accumulator, file) => {
+                    let statObj = fs.statSync(path.join(this.givenPath, file));
+                    const category = statObj.isFile() ? "File" : "Directory";
+                    if (!accumulator[category]) {
+                        accumulator[category] = [];
                     }
-                    
-                    else {                        
-                        if (statObj.isDirectory()) {
-                            if (groupOfFiles["directories"]) {
-                                groupOfFiles["directories"].push(file);
-                            }
-                            else {
-                                groupOfFiles["directories"] = [];
-                                groupOfFiles["directories"].push(file);
-                            }
-                        }}
-                })
-
+                    accumulator[category].push(file);
+                    return accumulator;
+                }, {})
                 console.log(groupOfFiles);
             }
+
+
             else {
                 console.log("invalid command");
             }
         }
         catch (err) {
-            console.log("invalid command or error occured");
+            console.log(err.message, "invalid command or error occured");
         }
     }
 
@@ -229,7 +209,7 @@ class FileViwer {
 
     findFile(command) {
         try {
-            let name = command[1];
+            let name = command[1].toLowerCase();
             let argument = command[2] ?? "c";
             if (command.length === 1) {
                 console.log("<NAME> missing - Please specify name to search");
@@ -242,37 +222,26 @@ class FileViwer {
                     console.log(files);
                 }
                 else if (argument === Constants.E) {
-                    let files = [];
                     let directoryFiles = fs.readdirSync(this.givenPath);
-                    for(let file of directoryFiles)
-                    {
+                    const files = directoryFiles?.filter((file) => {
                         let index = file.lastIndexOf(".");
                         let fileName = file.slice(0, index);
-                        if(fileName.endsWith(name))
-                        {
-                            files.push(file);
-                        }
-                    }
+                        return fileName.endsWith(name);
+                    })
                     console.log(files);
                 }
                 else if (argument) {
-                    let files = [];
                     let directoryFiles = fs.readdirSync(this.givenPath);
-                    for(let file of directoryFiles)
-                    {
+                    const files = directoryFiles?.filter((file) => {
                         let index = file.lastIndexOf(".");
                         let fileName = file.slice(0, index);
-                        if(fileName.includes(name))
-                        {
-                            files.push(file);
-                        }
-                    }
+                        return fileName.includes(name);
+                    })
                     console.log(files);
                 }
                 else {
                     console.log("invalid command");
                 }
-
             }
         }
         catch (err) {
