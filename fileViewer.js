@@ -3,7 +3,6 @@ const path = require('path');
 const { HELP_MSGS } = require('./constants.js');
 const { Logs, Log } = require('./logfile.js');
 const History = require('../sprint-6_4_mar_to_08_mar_2024/history.js');
-const { error } = require('console');
 
 class Constants {
     static CHANGEDIRECTORY = "cd";
@@ -91,21 +90,13 @@ class FileViwer {
                 return;
             }
             else if (argument === Constants.DOTS) {
-                let temp = this.givenPath;
-                temp = temp.split("/");
-                temp.pop();
-                temp = temp.join("/");
-                this.givenPath = temp;
+                this.givenPath = path.dirname(this.givenPath);
                 console.log(this.givenPath);
             }
-            else if (argument) {
-                let temp = this.givenPath;
-                temp = temp.split("/");
-                // temp.push("/");
-                temp.push(argument);
-                temp = temp.join("/");
-                if (fs.existsSync(temp)) {
-                    this.givenPath = temp;
+            else{
+                let newPath = path.join(this.givenPath, argument);
+                if (fs.existsSync(newPath)) {
+                    this.givenPath = newPath;
                     console.log(this.givenPath);
                 }
                 else {
@@ -138,14 +129,16 @@ class FileViwer {
                 console.log(hiddenFiles);
             }
             else if (argument === Constants.G) {
+                this.seperateFilesDirectories();
                 console.log(this.filesAndDirectories);
             }
             else if (argument === Constants.FI) {
                 this.seperateFilesDirectories();
                 console.log(this.filesAndDirectories["Files"]);
-                
+
             }
             else if (argument === Constants.DIR) {
+                this.seperateFilesDirectories();
                 console.log(this.filesAndDirectories["Directories"]);
             }
             else if (argument === Constants.FIG) {
@@ -153,16 +146,29 @@ class FileViwer {
                 let directoryFiles = fs.readdirSync(this.givenPath);
                 directoryFiles.forEach(file => {
                     let fileArr = file.split(".");
-                    if (fileArr[1] in groupOfFiles) {
-                        let temp = fileArr.join(".");
-                        groupOfFiles[fileArr[1]].push(temp);
+                    let statObj = fs.statSync(path.join(this.givenPath,file));
+                    if (statObj.isFile()) {
+                        if (groupOfFiles[fileArr[1]]) {
+                            groupOfFiles[fileArr[1]].push(file);
+                        }
+                        else {
+                            groupOfFiles[fileArr[1]] = [];
+                            groupOfFiles[fileArr[1]].push(file);
+                        }
                     }
-                    else {
-                        groupOfFiles[fileArr[1]] = [];
-                        let temp = fileArr.join(".");
-                        groupOfFiles[fileArr[1]].push(temp);
-                    }
+                    
+                    else {                        
+                        if (statObj.isDirectory()) {
+                            if (groupOfFiles["directories"]) {
+                                groupOfFiles["directories"].push(file);
+                            }
+                            else {
+                                groupOfFiles["directories"] = [];
+                                groupOfFiles["directories"].push(file);
+                            }
+                        }}
                 })
+
                 console.log(groupOfFiles);
             }
             else {
@@ -180,35 +186,45 @@ class FileViwer {
                 console.log("please specify fileName");
             }
             else {
-                let fileName = command[1];
-                let argument = command[2] ?? 5;
-                let check = fileName.split(".");
-                if (command[command.length - 1] !== typeof Number || command.length < 3) {
-                    if(fs.existsSync(this.givenPath))
-                    {
-                    if (check[check.length - 1] !== "txt") {
-                        console.log(".txt extension files only supported");
-                        return;
-                    }
-                    else {
-                        this.catOperation(fileName, argument);
-                    }
+                if (command.length < 3 && command[command.length - 1] !== typeof Number) {
+                    this.catOperation(command)
                 }
-                }
-                else {
-                    console.log("please specify file name");
+                else if (command.length === 3) {
+                    this.catOperation(command);
                 }
             }
         }
         catch (err) {
-            console.log("file not found");
+            console.log("invalid command");
         }
     }
 
-    catOperation(fileName, argument) {
-        let fileContent = fs.readFileSync(fileName, 'utf8');
-        const lines = fileContent.split('\n').slice(0, Number(argument));
-        console.log(lines.join('\n'));
+    catOperation(command) {
+        try {
+            let fileName = command[1];
+            let argument = command[2] ?? 5;
+            let relativePath = fileName;
+            let absolutePath = path.resolve(relativePath);
+            let check = absolutePath.split(".");
+            if (fs.existsSync(absolutePath)) {
+                let poppedElement = check.pop();
+                if (poppedElement !== "txt") {
+                    console.log(".txt extension files only supported");
+                    return;
+                }
+                else {
+                    let fileContent = fs.readFileSync(absolutePath, 'utf8');
+                    const lines = fileContent.split('\n').slice(0, Number(argument));
+                    console.log(lines.join('\n'));
+                }
+            }
+            else {
+                console.log("file not found");
+            }
+        }
+        catch (err) {
+            console.log("invalid command or error occured");
+        }
     }
 
     findFile(command) {
@@ -221,18 +237,36 @@ class FileViwer {
             }
             else {
                 if (argument === Constants.S) {
-                    let fileNames = this.getFileNames();
+                    let fileNames = fs.readdirSync(this.givenPath);
                     let files = fileNames.filter(file => file.startsWith(name));
                     console.log(files);
                 }
                 else if (argument === Constants.E) {
-                    let fileNames = this.getFileNames();
-                    let files = fileNames.filter(file => file.endsWith(name));
+                    let files = [];
+                    let directoryFiles = fs.readdirSync(this.givenPath);
+                    for(let file of directoryFiles)
+                    {
+                        let index = file.lastIndexOf(".");
+                        let fileName = file.slice(0, index);
+                        if(fileName.endsWith(name))
+                        {
+                            files.push(file);
+                        }
+                    }
                     console.log(files);
                 }
                 else if (argument) {
-                    let fileNames = this.getFileNames();
-                    let files = fileNames.filter(file => file.includes(name));
+                    let files = [];
+                    let directoryFiles = fs.readdirSync(this.givenPath);
+                    for(let file of directoryFiles)
+                    {
+                        let index = file.lastIndexOf(".");
+                        let fileName = file.slice(0, index);
+                        if(fileName.includes(name))
+                        {
+                            files.push(file);
+                        }
+                    }
                     console.log(files);
                 }
                 else {
@@ -246,19 +280,8 @@ class FileViwer {
         }
     }
 
-    getFileNames() {
-        let directoryFiles = fs.readdirSync(this.givenPath);
-        let fileNames = [];
-        for (let file of directoryFiles) {
-            let temp = file.split(".");
-            fileNames.push(temp[0])
-        }
-        return fileNames;
-    }
-
     seperateFilesDirectories() {
-        for(let key in this,this.filesAndDirectories)
-        {
+        for (let key in this.filesAndDirectories) {
             this.filesAndDirectories[key] = [];
         }
         let fileNames = fs.readdirSync(this.givenPath);
