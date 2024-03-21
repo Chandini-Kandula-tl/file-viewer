@@ -39,11 +39,12 @@ class FileViwer {
     }
 
     handleInput() {
-        this.seperateFilesDirectories()
+        this.seperateFilesDirectories();
         while (true) {
             if (this.logs.isLogingStart === false) {
                 console.log("logs are in deactive state, please activate to store logs \nobserve the format : <log --start> <filepath>");
             }
+            console.log();
             let input = prompt("enter the command : ");
             this.history.storeHistory(input);
             let command = input.split(" ");
@@ -114,50 +115,76 @@ class FileViwer {
     listOfFiles(command) {
         try {
             let argument = command[1];
+            let files = [];
             if (argument === undefined) {
                 let fileNames = fs.readdirSync(this.givenPath);
                 console.log("\ncurrent directory filenames : ");
                 fileNames.forEach(file => {
-                    console.log(file);
+                    files.push(file);
                 });
+                this.printPattern(files);
             }
             else if (argument === Constants.A) {
                 let fileNames = fs.readdirSync(this.givenPath);
                 const hiddenFiles = fileNames.filter(file => file.startsWith("."));
-                console.log(hiddenFiles);
+                this.printPattern(hiddenFiles);
             }
             else if (argument === Constants.G) {
-                console.log(this.filesAndDirectories);
+                for(let index in this.filesAndDirectories)
+                {
+                    console.log("\n",index , ":");
+                    this.printPattern(this.filesAndDirectories[index]);
+                }
+                
             }
             else if (argument === Constants.FI) {
-                console.log(this.filesAndDirectories["Files"]);
+                console.log("\nFiles : ");
+                this.printPattern(this.filesAndDirectories["Files"]);
 
             }
             else if (argument === Constants.DIR) {
-                console.log(this.filesAndDirectories["Directories"]);
+                console.log("\nDirectories : ");
+                this.printPattern(this.filesAndDirectories["Directories"]);
             }
-            else if (argument === Constants.FIG) {
+            else if (argument === Constants.FIG) {            
                 let directoryFiles = fs.readdirSync(this.givenPath);
                 const groupOfFiles = directoryFiles.reduce((accumulator, file) => {
-                    let statObj = fs.statSync(path.join(this.givenPath, file));
-                    const category = statObj.isFile() ? "File" : "Directory";
-                    if (!accumulator[category]) {
-                        accumulator[category] = [];
-                    }
-                    accumulator[category].push(file);
+                    let fileArr = file.split(".");
+                    const category = fileArr.length === 1 ? "directory" : fileArr[1];                    
+                    (!accumulator[category]) ? accumulator[category] = [file]: accumulator[category].push(file);
                     return accumulator;
                 }, {})
-                console.log(groupOfFiles);
+                for(let index in groupOfFiles)
+                {
+                    console.log("\n", index , ":");
+                    this.printPattern(groupOfFiles[index]);
+                }
             }
-
-
             else {
-                console.log("invalid command");
+                console.log("invalid command"); 
             }
         }
         catch (err) {
             console.log(err.message, "invalid command or error occured");
         }
+    }
+
+    printPattern(totalFiles)
+    {
+        let index = 0;
+        let line = " ";
+        while(index < totalFiles.length)
+        {
+            if(index % 2 === 0 && index !== 0)
+            {
+                console.log(line);
+                line = " ";
+            }
+            line += totalFiles[index];
+            line += "\t";
+            index += 1;
+        }
+        console.log(line);
     }
 
     displayContent(command) {
@@ -216,12 +243,12 @@ class FileViwer {
                 return;
             }
             else {
-                if (argument === Constants.S) {
+                if (argument.toLowerCase() === Constants.S) {
                     let fileNames = fs.readdirSync(this.givenPath);
                     let files = fileNames.filter(file => file.startsWith(name));
                     console.log(files);
                 }
-                else if (argument === Constants.E) {
+                else if (argument.toLowerCase() === Constants.E) {
                     let directoryFiles = fs.readdirSync(this.givenPath);
                     const files = directoryFiles?.filter((file) => {
                         let index = file.lastIndexOf(".");
@@ -296,6 +323,7 @@ class FileViwer {
             console.log("log is not yet started");
         }
     }
+
 }
 
 const prompt = require("prompt-sync")();
